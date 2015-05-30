@@ -1,0 +1,8 @@
+Install requirements:
+
+    make requirements
+
+
+Create database and run server:
+
+    ./hypnotic -serve -migrate
