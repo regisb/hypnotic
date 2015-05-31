@@ -15,7 +15,7 @@ type User struct {
 type Video struct {
 	ID               string `sql:"type:varchar(100);not null;unique_index"`
 	UserID           string `sql:"type:varchar(100);not null;index"`
-	OriginalFileName string `sql:"type:varchar(255);not null"`
+	OriginalFilename string `sql:"type:varchar(255);not null"`
 	Published        bool   `sql:"index;default:true"`
 	// TODO store sha256 of file and don't transcode if it already exists for this user
 }
@@ -27,6 +27,8 @@ type TranscodingJob struct {
 	Status    string `sql:"type:varchar(100);index"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Stdout    string `sql:"type:varchar(1000)"`
+	Stderr    string `sql:"type:varchar(1000)"`
 }
 
 func Db() *gorm.DB {

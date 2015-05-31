@@ -5,6 +5,11 @@ import "os"
 import "os/exec"
 import "path"
 
+const MAX_CONCURRENT_TRANSCODING_JOBS = 2
+const TRANSCODING_SRC_DIRECTORY = "/home/regis/bazar/transcoding/src/"
+const TRANSCODING_TMP_DIRECTORY = "/home/regis/bazar/transcoding/tmp/"
+const TRANSCODING_DST_DIRECTORY = "/home/regis/bazar/transcoding/dst/"
+
 var TRANSCODING_JOB_MESSAGES = make(chan int, MAX_CONCURRENT_TRANSCODING_JOBS)
 
 func InitialiseTranscodingJobMessages() {
@@ -22,7 +27,7 @@ func FreeTranscodingToken(index int) {
 	TRANSCODING_JOB_MESSAGES <- index
 }
 
-func Transcode(file multipart.File, videoID string, fileName string) {
+func Transcode(file multipart.File, videoID string, filename string) {
 	var job TranscodingJob
 	var video Video
 
@@ -36,8 +41,26 @@ func Transcode(file multipart.File, videoID string, fileName string) {
 	defer FreeTranscodingToken(token)
 	Db().Model(&job).Update("Status", "TRANSCODING")
 
-	// Save file to /tmp
-	srcFilePath := path.Join(TRANSCODING_SRC_DIRECTORY, videoID+path.Ext(fileName))
+	// Save to source directory
+	srcFilePath := SaveToSrcDirectory(file, videoID, filename)
+	defer os.Remove(srcFilePath)
+
+	// Run transcoding and save to tmp directory
+	convertedFilePath := RunTranscoding(video, job, srcFilePath)
+	defer os.Remove(convertedFilePath)
+
+	// Save to dst directory
+	dstFilePath := TranscodedVideoPath(video.ID)
+	os.Rename(convertedFilePath, dstFilePath)
+
+	// Update job and video properties
+	Db().Model(&job).Update("Status", "SUCCESS")
+	Db().Model(&video).Update("Published", true)
+}
+
+func SaveToSrcDirectory(file multipart.File, videoID string, filename string) string {
+	// Save file to temporary directory
+	srcFilePath := path.Join(TRANSCODING_SRC_DIRECTORY, videoID+path.Ext(filename))
 	tmpFile, err := os.Create(srcFilePath)
 	check(err) // TODO mark job as failed
 	defer tmpFile.Close()
@@ -48,27 +71,16 @@ func Transcode(file multipart.File, videoID string, fileName string) {
 		length, err = file.Read(buffer)
 		tmpFile.Write(buffer[:length])
 	}
+	return srcFilePath
+}
 
-	// Remove original file
-	defer os.Remove(srcFilePath)
-
-	// Convert file
+func RunTranscoding(video Video, job TranscodingJob, srcFilePath string) string {
 	convertedFilePath := VideoPath(TRANSCODING_TMP_DIRECTORY, video.ID)
-	defer os.Remove(convertedFilePath)
-	_, avconvErr := exec.Command("avconv",
+	stdout, stderr := exec.Command("avconv",
 		"-i", srcFilePath,
 		"-acodec", "mp3", "-vcodec", "libx264",
 		"-y",
 		convertedFilePath).Output()
-	if avconvErr != nil {
-
-	}
-
-	// Move mp4 file to transcoding destination
-	dstFilePath := TranscodedVideoPath(video.ID)
-	os.Rename(convertedFilePath, dstFilePath)
-
-	// TODO add more steps to the transcoding job
-	Db().Model(&job).Update("Status", "SUCCESS")
-	Db().Model(&video).Update("Published", true)
+	Db().Model(&job).Update("Stdout", stdout).Update("Stderr", stderr)
+	return convertedFilePath
 }

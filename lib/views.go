@@ -8,6 +8,12 @@ import "os"
 import "time"
 import "github.com/gorilla/mux"
 
+const (
+	USER_DOES_NOT_EXIST = "USER_DOES_NOT_EXIST"
+	EMPTY_USER_ID       = "EMPTY_USER_ID"
+	UNPUBLISHED_VIDEO   = "UNPUBLISHED_VIDEO"
+)
+
 func HandleRoutes() {
 	router := mux.NewRouter()
 	router.HandleFunc("/users", UsersHandler).Methods("GET")
@@ -109,7 +115,7 @@ func PostVideoHandler(w http.ResponseWriter, r *http.Request) {
 
 	videoID := RandomVideoID()
 	var video = Video{
-		OriginalFileName: header.Filename,
+		OriginalFilename: header.Filename,
 		ID:               videoID,
 		UserID:           userID,
 	}
@@ -120,9 +126,9 @@ func PostVideoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var response = map[string]interface{}{
-		"id":                 videoID,
-		"original_file_name": header.Filename,
-		"user_id":            userID,
+		"id":                videoID,
+		"original_filename": header.Filename,
+		"user_id":           userID,
 	}
 	go Transcode(file, videoID, header.Filename)
 	JsonMarshal(w, response)
@@ -148,9 +154,9 @@ func VideosHandler(w http.ResponseWriter, r *http.Request) {
 	responseVideos := make([]map[string]string, len(videos))
 	for index, video := range videos {
 		responseVideos[index] = map[string]string{
-			"id":                 video.ID,
-			"original_file_name": video.OriginalFileName,
-			"user_id":            video.UserID,
+			"id":                video.ID,
+			"original_filename": video.OriginalFilename,
+			"user_id":           video.UserID,
 		}
 	}
 	response := map[string]interface{}{
@@ -169,7 +175,7 @@ func VideoHandler(w http.ResponseWriter, r *http.Request) {
 	check(err)
 	defer videoFile.Close()
 	// TODO pass correct time value
-	http.ServeContent(w, r, TranscodedVideoName(video.OriginalFileName), time.Time{}, videoFile)
+	http.ServeContent(w, r, TranscodedVideoName(video.OriginalFilename), time.Time{}, videoFile)
 }
 
 func HtmlVideoHandler(w http.ResponseWriter, r *http.Request) {

@@ -5,6 +5,8 @@ import "math/rand"
 import "path"
 import "time"
 
+const VIDEO_ID_LENGTH = 15
+
 func TranscodedVideoPath(videoID string) string {
 	return VideoPath(TRANSCODING_DST_DIRECTORY, videoID)
 }
@@ -13,10 +15,10 @@ func VideoPath(directory string, videoID string) string {
 	return path.Join(directory, videoID+".mp4")
 }
 
-func TranscodedVideoName(originalFileName string) string {
-	originalExt := path.Ext(originalFileName)
-	fileName := originalFileName[:len(originalFileName)-len(originalExt)]
-	return fileName + ".mp4"
+func TranscodedVideoName(originalFilename string) string {
+	originalExt := path.Ext(originalFilename)
+	filename := originalFilename[:len(originalFilename)-len(originalExt)]
+	return filename + ".mp4"
 }
 
 func RandomVideoID() string {
