@@ -4,7 +4,7 @@ import "flag"
 import "fmt"
 import "net/http"
 
-import "behmo.com/hypnotic/lib"
+import "github.com/regisb/hypnotic/lib"
 
 func main() {
 	var serve = flag.Bool("serve", false, "Run the transcription server")
